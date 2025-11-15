@@ -1,0 +1,46 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+    enable:
+      - gofmt
+      - goimports
+      - govet
+      - errcheck
+      - staticcheck
+      - unused
+      - ineffassign
+      - typecheck
+      - gosimple
+      - misspell
+      - revive
+      - gosec
+      - unconvert
+      - unparam
+      - nakedret
+      - gocyclo
+      - dupl
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/chilly266futon/reviewer-assignment-service
+
+  gocyclo:
+    min-complexity: 15
+
+  dupl:
+    threshold: 100
+
+  govet:
+    check-shadowing: true
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+issues:
+    exclude-use-default: false
+    max-issues-per-linter: 0
+    max-same-issues: 0
+    

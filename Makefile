@@ -1,0 +1,43 @@
+.PHONY: help
+help: ## Показать help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: build
+build: ## Сборка
+	go build -o bin/api ./cmd/api
+
+.PHONY: run
+run: ## Запустить локально
+	go run ./cmd/api
+
+.PHONY: docker-up
+docker-up: ## Поднять в docker-compose
+	docker-compose up --build
+
+.PHONY: docker-down
+docker-down: ## Остановить docker-compose
+	docker-compose down -v
+
+.PHONY: test
+test: ## Запустить тесты
+	go test -v -race -timeout 30s ./...
+
+.PHONY: test-coverage
+test-coverage: ## Запустить тесты с покрытием
+	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+.PHONY: lint
+lint: ## Запустить линтер
+	golangci-lint run ./...
+
+.PHONY: fmt
+fmt: ## Отформатировать код
+	gofmt -w .
+	goimports -w -local github.com/chilly266futon/reviewer-assignment-service .
+
+.PHONY: clean
+clean: ## Очистить артефакты
+	rm -rf bin/
+	rm -f coverage.out coverage.html
+
