@@ -18,6 +18,21 @@ services:
     networks:
       - reviewer-network
 
+  migrate:
+    image: migrate/migrate:v4.17.0
+    volumes:
+      - ./migrations:/migrations
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://reviewer_user:reviewer_password@postgres:5432/reviewer_db?sslmode=disable",
+      "up"
+    ]
+    depends_on:
+      postgres:
+          condition: service_healthy
+    networks:
+      - reviewer-network
+
 volumes:
     postgres_data:
 
