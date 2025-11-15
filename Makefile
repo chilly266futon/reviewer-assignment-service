@@ -41,3 +41,29 @@ clean: ## Очистить артефакты
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 
+.PHONY: db-up
+db-up: ## Запустить только PostgreSQL и миграции
+	docker-compose up -d postgres
+	@echo "Waiting for PostgreSQL to be ready..."
+	@sleep 5
+	docker-compose up migrate
+
+.PHONY: db-down
+db-down: ## Остановить PostgreSQL
+	docker-compose down -v
+
+.PHONY: db-reset
+db-reset:  ## Пересоздать БД с нуля
+	docker-compose down -v
+	docker-compose up -d postgres
+	@echo "Waiting for PostgreSQL to be ready..."
+	@sleep 5
+	docker-compose up migrate
+
+.PHONY: db-shell
+db-shell: ## Открыть psql консоль
+	docker-compose exec postgres psql -U reviewer_user -d reviewer_db
+
+.PHONY: db-logs
+db-logs: ## Показать логи PostgreSQL
+	docker-compose logs -f postgres
