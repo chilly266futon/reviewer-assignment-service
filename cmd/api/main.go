@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
 	"github.com/chilly266futon/reviewer-assignment-service/internal/config"
@@ -19,6 +20,12 @@ import (
 )
 
 func main() {
+	// Загрузка переменных окружения из .env файла
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load .env file: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Загрузка конфигурации
 	cfg, err := config.Load()
 	if err != nil {
@@ -77,6 +84,12 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	// catching ctx.Done()
+	select {
+	case <-ctx.Done():
+		log.Info("Timeout of 10 seconds")
 	}
 
 	log.Info("Server stopped gracefully")
