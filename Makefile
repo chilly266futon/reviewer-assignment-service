@@ -76,3 +76,20 @@ logs: ## Показать логи сервиса
 test-health: ## Проверить health endpoint
 	@echo "Testing health endpoint..."
 	@curl -s http://localhost:8080/health | jq .
+
+.PHONY: mocks
+mocks: ## Сгенерировать моки
+	@command -v mockery >/dev/null 2>&1 || { \
+		echo "mockery not installed. Installing..."; \
+		go install github.com/vektra/mockery/v2@latest; \
+	}
+	mockery
+
+.PHONY: test
+test: mocks ## Запустить тесты (с генерацией моков)
+	go test -v -race -timeout 30s ./...
+
+.PHONY: test-coverage
+test-coverage: mocks ## Запустить тесты с покрытием
+	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -html=coverage.out -o coverage.html
