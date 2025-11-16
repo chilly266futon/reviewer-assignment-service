@@ -1,4 +1,4 @@
-FROM golang:1.24.2 AS builder
+FROM golang:1.24.2-alpine AS builder
 
 # Установка зависимостей
 RUN apk add --no-cache git make
@@ -14,9 +14,6 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /bin/api ./cmd/api
 
 FROM alpine:3.19
-
-# Сертификаты для HTTPS
-RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
