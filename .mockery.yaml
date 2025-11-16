@@ -1,0 +1,13 @@
+with-expecter: true
+dir: "mocks"
+outpkg: mocks
+filename: "{{.InterfaceName | snakecase}}.go"
+mockname: "{{.InterfaceName}}"
+inpackage: false
+testonly: false
+packages:
+  github.com/chilly266futon/reviewer-assignment-service/internal/repository:
+    interfaces:
+      UserRepository:
+      TeamRepository:
+      PullRequestRepository:
