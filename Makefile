@@ -1,95 +1,81 @@
-.PHONY: help
-help: ## Показать help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.PHONY: build test lint docker-build up down clean coverage
 
-.PHONY: build
-build: ## Сборка
-	go build -o bin/api ./cmd/api
+# Сборка бинарного файла
+build:
+	@echo "Building application..."
+	@go build -o bin/api cmd/api/main.go
 
-.PHONY: run
-run: ## Запустить всё через docker-compose
-	docker-compose up --build
+# Запуск тестов
+test:
+	@echo "Running tests..."
+	@go test -v -race -short ./...
 
-.PHONY: docker-up
-docker-up: ## Поднять в docker-compose
-	docker-compose up --build
+# Запуск тестов с покрытием
+coverage:
+	@echo "Running tests with coverage..."
+	@go test -v -short -coverprofile=coverage.out -covermode=atomic ./...
+	@go tool cover -func=coverage.out | tail -1
 
-.PHONY: docker-down
-docker-down: ## Остановить docker-compose
-	docker-compose down -v
+# Линтер
+lint:
+	@echo "Running linter..."
+	@golangci-lint run --timeout=5m
 
-.PHONY: test
-test: ## Запустить тесты
-	go test -v -race -timeout 30s ./...
+# Сборка Docker образа
+docker-build:
+	@echo "Building Docker image..."
+	@docker build -t reviewer-assignment-service:latest .
 
-.PHONY: test-coverage
-test-coverage: ## Запустить тесты с покрытием
-	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-	go tool cover -html=coverage.out -o coverage.html
+# Запуск всех сервисов
+up:
+	@echo "Starting services..."
+	@docker-compose up --build
 
-.PHONY: lint
-lint: ## Запустить линтер
-	golangci-lint run ./...
+# Остановка контейнеров
+down:
+	@echo "Stopping services..."
+	@docker-compose down
 
-.PHONY: fmt
-fmt: ## Отформатировать код
-	gofmt -w .
-	goimports -w -local github.com/chilly266futon/reviewer-assignment-service .
+# Очистка
+clean:
+	@echo "Cleaning up..."
+	@rm -rf bin/
+	@rm -f coverage.out
+	@go clean
 
-.PHONY: clean
-clean: ## Очистить артефакты
-	rm -rf bin/
-	rm -f coverage.out coverage.html
+# Установка зависимостей
+deps:
+	@echo "Downloading dependencies..."
+	@go mod download
+	@go mod tidy
 
-.PHONY: db-up
-db-up: ## Запустить только PostgreSQL и миграции
-	docker-compose up -d postgres
-	@echo "Waiting for PostgreSQL to be ready..."
-	@sleep 5
-	docker-compose up migrate
+# Форматирование кода
+fmt:
+	@echo "Formatting code..."
+	@go fmt ./...
 
-.PHONY: db-down
-db-down: ## Остановить PostgreSQL
-	docker-compose down -v
+# Запуск миграций
+migrate-up:
+	@echo "Running migrations..."
+	@migrate -path ./migrations -database "postgres://reviewer_user:reviewer_password@localhost:5432/reviewer_db?sslmode=disable" up
 
-.PHONY: db-reset
-db-reset:  ## Пересоздать БД с нуля
-	docker-compose down -v
-	docker-compose up -d postgres
-	@echo "Waiting for PostgreSQL to be ready..."
-	@sleep 5
-	docker-compose up migrate
+migrate-down:
+	@echo "Rolling back migrations..."
+	@migrate -path ./migrations -database "postgres://reviewer_user:reviewer_password@localhost:5432/reviewer_db?sslmode=disable" down
 
-.PHONY: db-shell
-db-shell: ## Открыть psql консоль
-	docker-compose exec postgres psql -U reviewer_user -d reviewer_db
+# Помощь
+help:
+	@echo "Available commands:"
+	@echo "  make build         - Build the application"
+	@echo "  make test          - Run tests"
+	@echo "  make coverage      - Run tests with coverage"
+	@echo "  make lint          - Run linter"
+	@echo "  make docker-build  - Build Docker image"
+	@echo "  make up            - Start all services with docker-compose"
+	@echo "  make down          - Stop all services"
+	@echo "  make clean         - Clean build artifacts"
+	@echo "  make deps          - Download dependencies"
+	@echo "  make fmt           - Format code"
+	@echo "  make migrate-up    - Run database migrations"
+	@echo "  make migrate-down  - Rollback database migrations"
 
-.PHONY: db-logs
-db-logs: ## Показать логи PostgreSQL
-	docker-compose logs -f postgres
-
-.PHONY: logs
-logs: ## Показать логи сервиса
-	docker-compose logs -f api
-
-.PHONY: test-health
-test-health: ## Проверить health endpoint
-	@echo "Testing health endpoint..."
-	@curl -s http://localhost:8080/health | jq .
-
-.PHONY: mocks
-mocks: ## Сгенерировать моки
-	@command -v mockery >/dev/null 2>&1 || { \
-		echo "mockery not installed. Installing..."; \
-		go install github.com/vektra/mockery/v2@latest; \
-	}
-	mockery
-
-.PHONY: test
-test: mocks ## Запустить тесты (с генерацией моков)
-	go test -v -race -timeout 30s ./...
-
-.PHONY: test-coverage
-test-coverage: mocks ## Запустить тесты с покрытием
-	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-	go tool cover -html=coverage.out -o coverage.html
