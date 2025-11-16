@@ -87,7 +87,7 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newReviewerID, pr, err := h.prService.ReassignReviewer(r.Context(), req.PullRequestID, req.OldReviewerID)
+	newReviewerID, pr, err := h.prService.ReassignReviewer(r.Context(), req.PullRequestID, req.OldUserID)
 	if err != nil {
 		handleServiceError(w, err, h.logger)
 		return

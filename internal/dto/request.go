@@ -34,7 +34,7 @@ type MergePRRequest struct {
 // ReassignReviewerRequest - запрос на переназначение ревьюера
 type ReassignReviewerRequest struct {
 	PullRequestID string `json:"pull_request_id"`
-	OldReviewerID string `json:"old_reviewer_id"`
+	OldUserID     string `json:"old_user_id"`
 }
 
 // Методы для валидации запросов
@@ -77,8 +77,8 @@ func (r *ReassignReviewerRequest) Validate() error {
 	if r.PullRequestID == "" {
 		return ErrMissingField("pull_request_id")
 	}
-	if r.OldReviewerID == "" {
-		return ErrMissingField("old_reviewer_id")
+	if r.OldUserID == "" {
+		return ErrMissingField("old_user_id")
 	}
 	return nil
 }
