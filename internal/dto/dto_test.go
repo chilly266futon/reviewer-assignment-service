@@ -16,17 +16,17 @@ func TestReassignReviewerRequest_Validate(t *testing.T) {
 	}{
 		{
 			name:    "valid request",
-			req:     ReassignReviewerRequest{PullRequestID: "pr1", OldReviewerID: "u1"},
+			req:     ReassignReviewerRequest{PullRequestID: "pr1", OldUserID: "u1"},
 			wantErr: false,
 		},
 		{
 			name:    "empty pr id",
-			req:     ReassignReviewerRequest{PullRequestID: "", OldReviewerID: "u1"},
+			req:     ReassignReviewerRequest{PullRequestID: "", OldUserID: "u1"},
 			wantErr: true,
 		},
 		{
 			name:    "empty reviewer id",
-			req:     ReassignReviewerRequest{PullRequestID: "pr1", OldReviewerID: ""},
+			req:     ReassignReviewerRequest{PullRequestID: "pr1", OldUserID: ""},
 			wantErr: true,
 		},
 	}
