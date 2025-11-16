@@ -1,3 +1,4 @@
+// cmd/api/main.go
 package main
 
 import (
@@ -10,20 +11,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
 	"github.com/chilly266futon/reviewer-assignment-service/internal/config"
+	"github.com/chilly266futon/reviewer-assignment-service/internal/handler"
 	"github.com/chilly266futon/reviewer-assignment-service/internal/repository/postgres"
+	"github.com/chilly266futon/reviewer-assignment-service/internal/service"
 	"github.com/chilly266futon/reviewer-assignment-service/pkg/logger"
 )
 
 func main() {
-	// Загрузка .env только для локальной разработки, игнорируем ошибку в Docker
-	_ = godotenv.Load()
-
 	// Загрузка конфигурации
 	cfg, err := config.Load()
 	if err != nil {
@@ -34,7 +31,7 @@ func main() {
 	// Инициализация логгера
 	log, err := logger.New(cfg.LogLevel)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
 		os.Exit(1)
 	}
 	defer log.Sync()
@@ -62,46 +59,25 @@ func main() {
 
 	log.Info("database connection established")
 
-	// Создаем transaction manager
+	// Создаем transaction manager и репозитории
 	txManager := postgres.NewTxManager(pool)
-
-	// Инициализация репозиториев
 	userRepo := postgres.NewUserRepository(pool, log)
 	teamRepo := postgres.NewTeamRepository(pool, log)
 	prRepo := postgres.NewPRRepository(pool, txManager, log)
 
 	log.Info("repositories initialized")
 
-	// TODO: инициализация сервисов (next task)
-	_ = userRepo
-	_ = teamRepo
-	_ = prRepo
+	// Инициализируем сервисы
+	teamService := service.NewTeamService(teamRepo, userRepo, log)
+	userService := service.NewUserService(userRepo, prRepo, log)
+	prService := service.NewPRService(prRepo, userRepo, log)
 
-	router := chi.NewRouter()
+	log.Info("services initialized")
 
-	router.Use(middleware.RealIP)
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.Timeout(60 * time.Second))
+	// Создаем router
+	router := handler.NewRouter(teamService, userService, prService, pool, log)
 
-	// Health check endpoint
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем подключение к БД
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		if err := pool.Ping(ctx); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"error","database":"disconnected"}`))
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","database":"connected"}`))
-	})
-
-	// TODO: routes
+	log.Info("router configured")
 
 	// Создаем HTTP сервер
 	srv := &http.Server{
@@ -112,6 +88,7 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Запускаем сервер в горутине
 	go func() {
 		log.Info("Server listening", zap.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
