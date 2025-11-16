@@ -16,15 +16,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/chilly266futon/reviewer-assignment-service/internal/config"
+	"github.com/chilly266futon/reviewer-assignment-service/internal/repository/postgres"
 	"github.com/chilly266futon/reviewer-assignment-service/pkg/logger"
 )
 
 func main() {
-	// Загрузка переменных окружения из .env файла
-	if err := godotenv.Load(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load .env file: %v\n", err)
-		os.Exit(1)
-	}
+	// Загрузка .env только для локальной разработки, игнорируем ошибку в Docker
+	_ = godotenv.Load()
 
 	// Загрузка конфигурации
 	cfg, err := config.Load()
@@ -46,18 +44,66 @@ func main() {
 		zap.String("log_level", cfg.LogLevel),
 	)
 
+	// Контекст для graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Подключаемся к БД
+	log.Info("Connecting to database",
+		zap.String("host", cfg.DBHost),
+		zap.String("database", cfg.DBName),
+	)
+
+	pool, err := postgres.NewPool(ctx, cfg, log)
+	if err != nil {
+		log.Fatal("failed to create database pool", zap.Error(err))
+	}
+	defer postgres.Close(pool)
+
+	log.Info("database connection established")
+
+	// Создаем transaction manager
+	txManager := postgres.NewTxManager(pool)
+
+	// Инициализация репозиториев
+	userRepo := postgres.NewUserRepository(pool, log)
+	teamRepo := postgres.NewTeamRepository(pool, log)
+	prRepo := postgres.NewPRRepository(pool, txManager, log)
+
+	log.Info("repositories initialized")
+
+	// TODO: инициализация сервисов (next task)
+	_ = userRepo
+	_ = teamRepo
+	_ = prRepo
+
 	router := chi.NewRouter()
 
 	router.Use(middleware.RealIP)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recoverer)
+	router.Use(middleware.Timeout(60 * time.Second))
 
+	// Health check endpoint
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		// Проверяем подключение к БД
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if err := pool.Ping(ctx); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"error","database":"disconnected"}`))
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		w.Write([]byte(`{"status":"ok","database":"connected"}`))
 	})
 
+	// TODO: routes
+
+	// Создаем HTTP сервер
 	srv := &http.Server{
 		Addr:         ":" + cfg.ServerPort,
 		Handler:      router,
@@ -77,19 +123,14 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
+
 	log.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Fatal("Server forced to shutdown", zap.Error(err))
-	}
-
-	// catching ctx.Done()
-	select {
-	case <-ctx.Done():
-		log.Info("Timeout of 10 seconds")
 	}
 
 	log.Info("Server stopped gracefully")
