@@ -7,8 +7,8 @@ build: ## Сборка
 	go build -o bin/api ./cmd/api
 
 .PHONY: run
-run: ## Запустить локально
-	go run ./cmd/api
+run: ## Запустить всё через docker-compose
+	docker-compose up --build
 
 .PHONY: docker-up
 docker-up: ## Поднять в docker-compose
@@ -67,3 +67,12 @@ db-shell: ## Открыть psql консоль
 .PHONY: db-logs
 db-logs: ## Показать логи PostgreSQL
 	docker-compose logs -f postgres
+
+.PHONY: logs
+logs: ## Показать логи сервиса
+	docker-compose logs -f api
+
+.PHONY: test-health
+test-health: ## Проверить health endpoint
+	@echo "Testing health endpoint..."
+	@curl -s http://localhost:8080/health | jq .
