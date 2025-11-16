@@ -116,7 +116,7 @@ func (r *UserRepository) UpdateIsActive(ctx context.Context, id string, isActive
 	return nil
 }
 
-// GetActiveByTeamID возвращает активных пользователей команды, исключая указанных
+// GetActiveUsersByTeamID возвращает активных пользователей команды, исключая указанных
 func (r *UserRepository) GetActiveUsersByTeamID(ctx context.Context, teamID int, excludeUserIDs []string) ([]*domain.User, error) {
 	query := `
 		SELECT u.id, u.username, u.team_id, t.name as team_name, u.is_active, u.created_at, u.updated_at
