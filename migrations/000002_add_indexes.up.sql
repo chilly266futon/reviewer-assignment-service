@@ -4,7 +4,7 @@ CREATE INDEX idx_users_team_id ON users(team_id);
 -- Индекс для фильтрации активных пользователей
 CREATE INDEX idx_users_is_active ON users(is_active);
 
--- Cоставной индекс для поиска активных пользователей команды
+-- Составной индекс для поиска активных пользователей команды
 CREATE INDEX idx_users_team_active ON users(team_id, is_active);
 
 -- Индексы для фильтрации PR по статусу и автору
