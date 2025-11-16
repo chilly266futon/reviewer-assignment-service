@@ -33,6 +33,27 @@ services:
     networks:
       - reviewer-network
 
+  api:
+    build: .
+    container_name: reviewer_assignment_api
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: reviewer_user
+      DB_PASSWORD: reviewer_password
+      DB_NAME: reviewer_db
+      DB_SSL_MODE: disable
+      LOG_LEVEL: info
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+       - reviewer-network
+    restart: unless-stopped
+
 volumes:
     postgres_data:
 
